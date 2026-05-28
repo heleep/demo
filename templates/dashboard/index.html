@@ -1,0 +1,241 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+{% block page_subtitle %}{{ now.strftime('%A, %d %B %Y') if now else '' }}{% endblock %}
+
+{% block content %}
+<!-- Stats Grid -->
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <div class="card stat-card p-5">
+        <div class="flex items-start justify-between">
+            <div>
+                <p class="text-xs text-slate-400 font-600 uppercase tracking-wide">Total Products</p>
+                <p class="text-2xl font-800 text-slate-800 mt-1">{{ total_products }}</p>
+                <p class="text-xs text-slate-400 mt-1">Active items</p>
+            </div>
+            <div class="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center">
+                <i class="fa-solid fa-boxes-stacked text-blue-600"></i>
+            </div>
+        </div>
+    </div>
+    <div class="card stat-card p-5">
+        <div class="flex items-start justify-between">
+            <div>
+                <p class="text-xs text-slate-400 font-600 uppercase tracking-wide">Monthly Revenue</p>
+                <p class="text-2xl font-800 text-slate-800 mt-1">₹{{ "{:,.0f}".format(monthly_revenue) }}</p>
+                <p class="text-xs text-green-600 mt-1 font-500">{{ monthly_sales }} sales this month</p>
+            </div>
+            <div class="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center">
+                <i class="fa-solid fa-indian-rupee-sign text-green-600"></i>
+            </div>
+        </div>
+    </div>
+    <div class="card stat-card p-5">
+        <div class="flex items-start justify-between">
+            <div>
+                <p class="text-xs text-slate-400 font-600 uppercase tracking-wide">Today's Revenue</p>
+                <p class="text-2xl font-800 text-slate-800 mt-1">₹{{ "{:,.0f}".format(today_revenue) }}</p>
+                <p class="text-xs text-slate-400 mt-1">{{ total_customers }} customers</p>
+            </div>
+            <div class="w-10 h-10 bg-purple-50 rounded-xl flex items-center justify-center">
+                <i class="fa-solid fa-chart-line text-purple-600"></i>
+            </div>
+        </div>
+    </div>
+    <div class="card stat-card p-5">
+        <div class="flex items-start justify-between">
+            <div>
+                <p class="text-xs text-slate-400 font-600 uppercase tracking-wide">Low Stock Alert</p>
+                <p class="text-2xl font-800 text-red-500 mt-1">{{ low_stock_products }}</p>
+                <p class="text-xs text-red-400 mt-1 font-500">Needs reorder</p>
+            </div>
+            <div class="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center">
+                <i class="fa-solid fa-triangle-exclamation text-red-500"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-6">
+    <!-- Revenue Chart -->
+    <div class="card p-5 lg:col-span-2">
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <h3 class="font-700 text-slate-800">Revenue Overview</h3>
+                <p class="text-xs text-slate-400">Last 7 days performance</p>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="switchChart('revenue')" id="btnRevenue" class="text-xs px-3 py-1.5 bg-blue-600 text-white rounded-lg font-600">Revenue</button>
+                <button onclick="switchChart('sales')" id="btnSales" class="text-xs px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg font-600">Sales</button>
+            </div>
+        </div>
+        <div class="h-52">
+            <canvas id="revenueChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Category Donut -->
+    <div class="card p-5">
+        <div class="mb-4">
+            <h3 class="font-700 text-slate-800">Sales by Category</h3>
+            <p class="text-xs text-slate-400">Units sold per category</p>
+        </div>
+        <div class="h-52">
+            <canvas id="categoryChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Bottom Grid -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+    <!-- Recent Transactions -->
+    <div class="card p-5 lg:col-span-2">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="font-700 text-slate-800">Recent Invoices</h3>
+            <a href="{{ url_for('billing.invoices') }}" class="text-xs text-blue-600 hover:text-blue-700 font-600">View all →</a>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="border-b border-slate-100">
+                        <th class="pb-2 text-left text-xs text-slate-400 font-600">Invoice</th>
+                        <th class="pb-2 text-left text-xs text-slate-400 font-600">Customer</th>
+                        <th class="pb-2 text-right text-xs text-slate-400 font-600">Amount</th>
+                        <th class="pb-2 text-center text-xs text-slate-400 font-600">Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for inv in recent_invoices %}
+                    <tr class="table-row border-b border-slate-50">
+                        <td class="py-2.5">
+                            <a href="{{ url_for('billing.view_invoice', invoice_id=inv.id) }}" class="font-600 text-blue-600 hover:text-blue-700 text-xs font-mono">{{ inv.invoice_number }}</a>
+                        </td>
+                        <td class="py-2.5 text-slate-600 text-xs">{{ inv.customer.name if inv.customer else 'Walk-in' }}</td>
+                        <td class="py-2.5 text-right font-700 text-slate-800 text-xs">₹{{ "{:,.2f}".format(inv.total_amount) }}</td>
+                        <td class="py-2.5 text-center">
+                            <span class="badge {{ inv.status_badge_class }} text-xs">{{ inv.payment_status.title() }}</span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Low Stock Alerts -->
+    <div class="card p-5">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="font-700 text-slate-800">Low Stock Alerts</h3>
+            <a href="{{ url_for('products.index') }}?low_stock=1" class="text-xs text-blue-600 hover:text-blue-700 font-600">View all →</a>
+        </div>
+        <div class="space-y-3">
+            {% if low_stock_items %}
+            {% for p in low_stock_items %}
+            <div class="flex items-center justify-between p-2.5 bg-red-50 rounded-xl border border-red-100">
+                <div class="min-w-0">
+                    <p class="text-xs font-700 text-slate-700 truncate">{{ p.name }}</p>
+                    <p class="text-xs text-slate-400 font-mono">{{ p.sku }}</p>
+                </div>
+                <div class="text-right ml-2 flex-shrink-0">
+                    <p class="text-sm font-800 text-red-500">{{ p.current_stock }}</p>
+                    <p class="text-xs text-slate-400">of {{ p.reorder_level }}</p>
+                </div>
+            </div>
+            {% endfor %}
+            {% else %}
+            <div class="text-center py-6">
+                <i class="fa-solid fa-check-circle text-green-400 text-3xl mb-2"></i>
+                <p class="text-sm text-slate-400">All products well-stocked!</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Inventory Summary -->
+        <div class="mt-4 pt-4 border-t border-slate-100">
+            <div class="flex justify-between items-center text-sm">
+                <span class="text-slate-500">Inventory Value</span>
+                <span class="font-700 text-slate-800">₹{{ "{:,.0f}".format(total_inventory_value) }}</span>
+            </div>
+            <div class="flex justify-between items-center text-sm mt-1">
+                <span class="text-slate-500">Pending Dues</span>
+                <span class="font-700 text-orange-500">₹{{ "{:,.0f}".format(pending_amount) }}</span>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let chartData = null;
+let revenueChart = null;
+
+async function loadChartData() {
+    const res = await fetch('/api/dashboard/chart-data');
+    chartData = await res.json();
+
+    // Revenue/Sales chart
+    const ctx = document.getElementById('revenueChart').getContext('2d');
+    revenueChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: chartData.daily.labels,
+            datasets: [{
+                label: 'Revenue (₹)',
+                data: chartData.daily.revenue,
+                backgroundColor: 'rgba(37,99,235,0.15)',
+                borderColor: '#2563eb',
+                borderWidth: 2,
+                borderRadius: 8,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { grid: { color: '#f1f5f9' }, ticks: { font: { size: 11 }, color: '#94a3b8' } },
+                x: { grid: { display: false }, ticks: { font: { size: 11 }, color: '#94a3b8' } }
+            }
+        }
+    });
+
+    // Category donut chart
+    const ctx2 = document.getElementById('categoryChart').getContext('2d');
+    const colors = ['#2563eb','#7c3aed','#059669','#d97706','#dc2626','#0891b2'];
+    new Chart(ctx2, {
+        type: 'doughnut',
+        data: {
+            labels: chartData.categories.labels,
+            datasets: [{ data: chartData.categories.data, backgroundColor: colors, borderWidth: 2, borderColor: '#fff' }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { position: 'bottom', labels: { font: { size: 10 }, padding: 8 } } },
+            cutout: '65%'
+        }
+    });
+}
+
+function switchChart(type) {
+    if (!chartData) return;
+    const btn1 = document.getElementById('btnRevenue');
+    const btn2 = document.getElementById('btnSales');
+    if (type === 'revenue') {
+        btn1.className = 'text-xs px-3 py-1.5 bg-blue-600 text-white rounded-lg font-600';
+        btn2.className = 'text-xs px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg font-600';
+        revenueChart.data.datasets[0].data = chartData.daily.revenue;
+        revenueChart.data.datasets[0].label = 'Revenue (₹)';
+    } else {
+        btn2.className = 'text-xs px-3 py-1.5 bg-blue-600 text-white rounded-lg font-600';
+        btn1.className = 'text-xs px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg font-600';
+        revenueChart.data.datasets[0].data = chartData.daily.sales;
+        revenueChart.data.datasets[0].label = 'Sales Count';
+    }
+    revenueChart.update();
+}
+
+loadChartData();
+</script>
+{% endblock %}

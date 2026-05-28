@@ -1,0 +1,299 @@
+{% extends 'base.html' %}
+{% block title %}Inventory{% endblock %}
+{% block page_title %}Inventory Management{% endblock %}
+{% block page_subtitle %}Track stock movements and warehouse levels{% endblock %}
+
+{% block content %}
+<!-- Quick Stats -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+    <div class="card p-4 flex items-center gap-3">
+        <div class="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center">
+            <i class="fa-solid fa-arrow-down text-green-600"></i>
+        </div>
+        <div>
+            <p class="text-xs text-slate-400 font-600">Stock In Today</p>
+            <p class="font-700 text-slate-800" id="stockInToday">-</p>
+        </div>
+    </div>
+    <div class="card p-4 flex items-center gap-3">
+        <div class="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center">
+            <i class="fa-solid fa-arrow-up text-red-500"></i>
+        </div>
+        <div>
+            <p class="text-xs text-slate-400 font-600">Stock Out Today</p>
+            <p class="font-700 text-slate-800" id="stockOutToday">-</p>
+        </div>
+    </div>
+    <div class="card p-4 flex items-center gap-3">
+        <div class="w-10 h-10 bg-orange-50 rounded-xl flex items-center justify-center">
+            <i class="fa-solid fa-triangle-exclamation text-orange-500"></i>
+        </div>
+        <div>
+            <p class="text-xs text-slate-400 font-600">Low Stock Items</p>
+            <p class="font-700 text-orange-500">{{ products | selectattr('is_low_stock') | list | length }}</p>
+        </div>
+    </div>
+    <div class="card p-4 flex items-center gap-3">
+        <div class="w-10 h-10 bg-purple-50 rounded-xl flex items-center justify-center">
+            <i class="fa-solid fa-warehouse text-purple-600"></i>
+        </div>
+        <div>
+            <p class="text-xs text-slate-400 font-600">Total SKUs</p>
+            <p class="font-700 text-slate-800">{{ products | length }}</p>
+        </div>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+    <!-- Action Panel -->
+    <div class="space-y-4">
+        {% if current_user.role in ['admin', 'inventory_manager'] %}
+        <!-- Stock In -->
+        <div class="card p-5">
+            <h3 class="font-700 text-slate-800 mb-4 flex items-center gap-2">
+                <span class="w-7 h-7 bg-green-100 rounded-lg flex items-center justify-center">
+                    <i class="fa-solid fa-plus text-green-600 text-xs"></i>
+                </span>
+                Stock In
+            </h3>
+            <div class="space-y-3">
+                <select id="stockInProduct" class="input-field">
+                    <option value="">Select Product</option>
+                    {% for p in products %}
+                    <option value="{{ p.id }}">{{ p.name }} ({{ p.sku }})</option>
+                    {% endfor %}
+                </select>
+                <input type="number" id="stockInQty" class="input-field" placeholder="Quantity" min="1">
+                <input type="number" id="stockInPrice" class="input-field" placeholder="Purchase price (optional)" step="0.01">
+                <input type="text" id="stockInRef" class="input-field" placeholder="Reference / PO number">
+                <textarea id="stockInNotes" class="input-field" rows="2" placeholder="Notes"></textarea>
+                <button onclick="doStockIn()" class="btn-primary w-full">
+                    <i class="fa-solid fa-arrow-down mr-2"></i>Add Stock
+                </button>
+            </div>
+        </div>
+
+        <!-- Stock Out -->
+        <div class="card p-5">
+            <h3 class="font-700 text-slate-800 mb-4 flex items-center gap-2">
+                <span class="w-7 h-7 bg-red-100 rounded-lg flex items-center justify-center">
+                    <i class="fa-solid fa-minus text-red-500 text-xs"></i>
+                </span>
+                Stock Out
+            </h3>
+            <div class="space-y-3">
+                <select id="stockOutProduct" class="input-field">
+                    <option value="">Select Product</option>
+                    {% for p in products %}
+                    <option value="{{ p.id }}" data-stock="{{ p.current_stock }}">{{ p.name }} (Stock: {{ p.current_stock }})</option>
+                    {% endfor %}
+                </select>
+                <input type="number" id="stockOutQty" class="input-field" placeholder="Quantity" min="1">
+                <input type="text" id="stockOutRef" class="input-field" placeholder="Reference">
+                <textarea id="stockOutNotes" class="input-field" rows="2" placeholder="Reason for stock out"></textarea>
+                <button onclick="doStockOut()" class="btn-danger w-full py-2.5 text-sm">
+                    <i class="fa-solid fa-arrow-up mr-2"></i>Remove Stock
+                </button>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if current_user.role == 'admin' %}
+        <!-- Adjustment -->
+        <div class="card p-5">
+            <h3 class="font-700 text-slate-800 mb-4 flex items-center gap-2">
+                <span class="w-7 h-7 bg-orange-100 rounded-lg flex items-center justify-center">
+                    <i class="fa-solid fa-sliders text-orange-500 text-xs"></i>
+                </span>
+                Stock Adjustment
+            </h3>
+            <div class="space-y-3">
+                <select id="adjProduct" class="input-field">
+                    <option value="">Select Product</option>
+                    {% for p in products %}
+                    <option value="{{ p.id }}">{{ p.name }}</option>
+                    {% endfor %}
+                </select>
+                <input type="number" id="adjQty" class="input-field" placeholder="New stock quantity" min="0">
+                <input type="text" id="adjRef" class="input-field" placeholder="Reason for adjustment">
+                <button onclick="doAdjustment()" class="btn-secondary w-full">
+                    <i class="fa-solid fa-calculator mr-2"></i>Adjust Stock
+                </button>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Transaction History -->
+    <div class="lg:col-span-2 card p-5">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="font-700 text-slate-800">Movement History</h3>
+            <div class="flex gap-2">
+                <select id="txnTypeFilter" class="input-field" style="width: auto; font-size: 12px; padding: 6px 10px;" onchange="loadTransactions()">
+                    <option value="">All Types</option>
+                    <option value="stock_in">Stock In</option>
+                    <option value="stock_out">Stock Out</option>
+                    <option value="adjustment">Adjustment</option>
+                    <option value="sale">Sale</option>
+                </select>
+            </div>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="border-b border-slate-100">
+                    <tr>
+                        <th class="pb-2 text-left text-xs text-slate-400 font-700">Product</th>
+                        <th class="pb-2 text-center text-xs text-slate-400 font-700">Type</th>
+                        <th class="pb-2 text-center text-xs text-slate-400 font-700">Qty</th>
+                        <th class="pb-2 text-left text-xs text-slate-400 font-700">Reference</th>
+                        <th class="pb-2 text-left text-xs text-slate-400 font-700">Date</th>
+                    </tr>
+                </thead>
+                <tbody id="transactionsBody">
+                    <tr><td colspan="5" class="text-center py-8 text-slate-400">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <div id="txnPagination" class="mt-3 flex justify-end gap-1"></div>
+    </div>
+</div>
+
+<!-- Warehouse Stock Summary -->
+<div class="card p-5 mt-5">
+    <h3 class="font-700 text-slate-800 mb-4">Current Stock Overview</h3>
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead class="border-b border-slate-100">
+                <tr>
+                    <th class="pb-2 text-left text-xs text-slate-400 font-700">Product</th>
+                    <th class="pb-2 text-left text-xs text-slate-400 font-700">SKU</th>
+                    <th class="pb-2 text-left text-xs text-slate-400 font-700">Category</th>
+                    <th class="pb-2 text-right text-xs text-slate-400 font-700">Current Stock</th>
+                    <th class="pb-2 text-right text-xs text-slate-400 font-700">Reorder Level</th>
+                    <th class="pb-2 text-right text-xs text-slate-400 font-700">Stock Value</th>
+                    <th class="pb-2 text-center text-xs text-slate-400 font-700">Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in products %}
+                <tr class="table-row border-b border-slate-50">
+                    <td class="py-2.5 font-600 text-slate-800">{{ p.name }}</td>
+                    <td class="py-2.5"><span class="font-mono text-xs bg-slate-100 px-2 py-0.5 rounded">{{ p.sku }}</span></td>
+                    <td class="py-2.5 text-slate-500 text-xs">{{ p.category.name if p.category else '-' }}</td>
+                    <td class="py-2.5 text-right font-700 {{ 'text-red-500' if p.is_low_stock else 'text-green-600' }}">
+                        {{ p.current_stock }} {{ p.unit }}
+                    </td>
+                    <td class="py-2.5 text-right text-slate-500">{{ p.reorder_level }}</td>
+                    <td class="py-2.5 text-right text-slate-600">₹{{ "{:,.2f}".format(p.stock_value) }}</td>
+                    <td class="py-2.5 text-center">
+                        {% if p.current_stock == 0 %}
+                        <span class="badge badge-danger">Out of Stock</span>
+                        {% elif p.is_low_stock %}
+                        <span class="badge badge-warning">Low Stock</span>
+                        {% else %}
+                        <span class="badge badge-success">In Stock</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let txnPage = 1;
+
+async function loadTransactions() {
+    const txnType = document.getElementById('txnTypeFilter').value;
+    const params = new URLSearchParams({ page: txnPage, type: txnType });
+    const data = await apiRequest(`/api/inventory/transactions?${params}`);
+
+    const typeColors = { stock_in: 'badge-success', stock_out: 'badge-danger', adjustment: 'badge-warning', sale: 'badge-info', return: 'badge-secondary' };
+    document.getElementById('transactionsBody').innerHTML = data.transactions.map(t => `
+        <tr class="table-row border-b border-slate-50">
+            <td class="py-2.5">
+                <div class="font-600 text-slate-700 text-sm">${t.product}</div>
+                <div class="text-xs text-slate-400 font-mono">${t.sku}</div>
+            </td>
+            <td class="py-2.5 text-center"><span class="badge ${typeColors[t.type] || 'badge-secondary'} text-xs">${t.type_display}</span></td>
+            <td class="py-2.5 text-center font-700 text-slate-800">${t.quantity}</td>
+            <td class="py-2.5 text-slate-500 text-xs">${t.reference || '-'}</td>
+            <td class="py-2.5 text-slate-400 text-xs">${t.created_at}</td>
+        </tr>
+    `).join('') || '<tr><td colspan="5" class="text-center py-8 text-slate-400">No transactions found</td></tr>';
+
+    const pag = document.getElementById('txnPagination');
+    pag.innerHTML = '';
+    for (let i = 1; i <= data.pages; i++) {
+        const btn = document.createElement('button');
+        btn.className = `w-7 h-7 text-xs rounded-lg font-600 ${i === data.current_page ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'}`;
+        btn.textContent = i;
+        btn.onclick = () => { txnPage = i; loadTransactions(); };
+        pag.appendChild(btn);
+    }
+}
+
+async function doStockIn() {
+    const productId = document.getElementById('stockInProduct').value;
+    const qty = document.getElementById('stockInQty').value;
+    if (!productId || !qty) { showToast('Select product and quantity', 'warning'); return; }
+
+    try {
+        const res = await apiRequest('/api/inventory/stock-in', 'POST', {
+            product_id: productId,
+            quantity: qty,
+            unit_price: document.getElementById('stockInPrice').value,
+            reference: document.getElementById('stockInRef').value,
+            notes: document.getElementById('stockInNotes').value
+        });
+        showToast(`Stock added! New stock: ${res.new_stock}`, 'success');
+        document.getElementById('stockInQty').value = '';
+        document.getElementById('stockInRef').value = '';
+        document.getElementById('stockInNotes').value = '';
+        loadTransactions();
+        setTimeout(() => location.reload(), 1500);
+    } catch(err) { showToast(err.message, 'error'); }
+}
+
+async function doStockOut() {
+    const productId = document.getElementById('stockOutProduct').value;
+    const qty = document.getElementById('stockOutQty').value;
+    if (!productId || !qty) { showToast('Select product and quantity', 'warning'); return; }
+
+    try {
+        const res = await apiRequest('/api/inventory/stock-out', 'POST', {
+            product_id: productId,
+            quantity: qty,
+            reference: document.getElementById('stockOutRef').value,
+            notes: document.getElementById('stockOutNotes').value
+        });
+        showToast(`Stock removed! Remaining: ${res.new_stock}`, 'success');
+        document.getElementById('stockOutQty').value = '';
+        loadTransactions();
+        setTimeout(() => location.reload(), 1500);
+    } catch(err) { showToast(err.message, 'error'); }
+}
+
+async function doAdjustment() {
+    const productId = document.getElementById('adjProduct').value;
+    const qty = document.getElementById('adjQty').value;
+    if (!productId || qty === '') { showToast('Select product and enter quantity', 'warning'); return; }
+
+    try {
+        await apiRequest('/api/inventory/adjustment', 'POST', {
+            product_id: productId,
+            new_quantity: qty,
+            notes: document.getElementById('adjRef').value
+        });
+        showToast('Stock adjusted successfully!', 'success');
+        loadTransactions();
+        setTimeout(() => location.reload(), 1500);
+    } catch(err) { showToast(err.message, 'error'); }
+}
+
+loadTransactions();
+</script>
+{% endblock %}

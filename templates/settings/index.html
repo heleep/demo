@@ -1,0 +1,190 @@
+{% extends 'base.html' %}
+{% block title %}Settings{% endblock %}
+{% block page_title %}Company Settings{% endblock %}
+{% block page_subtitle %}Configure your business profile and invoice preferences{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+    <!-- Company Profile -->
+    <div class="lg:col-span-2 space-y-4">
+        <div class="card p-6">
+            <h3 class="font-700 text-slate-800 mb-5 flex items-center gap-2">
+                <span class="w-8 h-8 bg-blue-100 rounded-xl flex items-center justify-center">
+                    <i class="fa-solid fa-building text-blue-600 text-sm"></i>
+                </span>
+                Company Profile
+            </h3>
+            <div class="grid grid-cols-2 gap-4">
+                <div class="col-span-2">
+                    <label class="block text-sm font-600 text-slate-700 mb-1.5">Company Name *</label>
+                    <input type="text" id="sCompanyName" class="input-field" value="{{ settings.company_name if settings else '' }}" placeholder="Your Company Name">
+                </div>
+                <div>
+                    <label class="block text-sm font-600 text-slate-700 mb-1.5">GSTIN</label>
+                    <input type="text" id="sGstNumber" class="input-field" value="{{ settings.gst_number if settings else '' }}" placeholder="15-digit GSTIN" maxlength="15">
+                </div>
+                <div>
+                    <label class="block text-sm font-600 text-slate-700 mb-1.5">PAN Number</label>
+                    <input type="text" id="sPanNumber" class="input-field" value="{{ settings.pan_number if settings else '' }}" placeholder="ABCDE1234F" maxlength="10">
+                </div>
+                <div>
+                    <label class="block text-sm font-600 text-slate-700 mb-1.5">Phone</label>
+                    <input type="text" id="sPhone" class="input-field" value="{{ settings.phone if settings else '' }}" placeholder="Business phone">
+                </div>
+                <div>
+                    <label class="block text-sm font-600 text-slate-700 mb-1.5">Email</label>
+                    <input type="email" id="sEmail" class="input-field" value="{{ settings.email if settings else '' }}" placeholder="business@email.com">
+                </div>
+                <div>
+                    <label class="block text-sm font-600 text-slate-700 mb-1.5">Website</label>
+                    <input type="text" id="sWebsite" class="input-field" value="{{ settings.website if settings else '' }}" placeholder="www.yourwebsite.com">
+                </div>
+                <div>
+                    <label class="block text-sm font-600 text-slate-700 mb-1.5">Default GST Rate (%)</label>
+                    <select id="sDefaultGst" class="input-field">
+                        {% for rate in [0, 5, 12, 18, 28] %}
+                        <option value="{{ rate }}" {{ 'selected' if settings and settings.default_gst == rate }}>{{ rate }}%</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-span-2">
+                    <label class="block text-sm font-600 text-slate-700 mb-1.5">Business Address</label>
+                    <textarea id="sAddress" class="input-field" rows="3" placeholder="Complete business address">{{ settings.address if settings else '' }}</textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- Invoice Settings -->
+        <div class="card p-6">
+            <h3 class="font-700 text-slate-800 mb-5 flex items-center gap-2">
+                <span class="w-8 h-8 bg-green-100 rounded-xl flex items-center justify-center">
+                    <i class="fa-solid fa-file-invoice text-green-600 text-sm"></i>
+                </span>
+                Invoice Settings
+            </h3>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-600 text-slate-700 mb-1.5">Invoice Prefix</label>
+                    <input type="text" id="sInvoicePrefix" class="input-field" value="{{ settings.invoice_prefix if settings else 'INV' }}" placeholder="INV" maxlength="5">
+                    <p class="text-xs text-slate-400 mt-1">Example: INV1001, PO1001</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-600 text-slate-700 mb-1.5">Next Invoice Number</label>
+                    <input type="text" class="input-field bg-slate-50" value="{{ settings.invoice_prefix if settings else 'INV' }}{{ settings.invoice_counter if settings else '1001' }}" disabled>
+                    <p class="text-xs text-slate-400 mt-1">Auto-increments with each invoice</p>
+                </div>
+                <div class="col-span-2">
+                    <label class="block text-sm font-600 text-slate-700 mb-1.5">Invoice Footer Text</label>
+                    <textarea id="sInvoiceFooter" class="input-field" rows="2" placeholder="E.g.: Thank you for your business! Goods once sold will not be returned.">{{ settings.invoice_footer if settings else '' }}</textarea>
+                </div>
+                <div class="col-span-2">
+                    <label class="block text-sm font-600 text-slate-700 mb-1.5">Bank Details (shown on invoice)</label>
+                    <textarea id="sBankDetails" class="input-field" rows="3" placeholder="Bank: State Bank of India&#10;A/C No: 1234567890&#10;IFSC: SBIN0001234&#10;Branch: Mumbai Main">{{ settings.bank_details if settings else '' }}</textarea>
+                </div>
+            </div>
+        </div>
+
+        <button onclick="saveSettings()" id="saveSettingsBtn" class="btn-primary w-full py-3 text-base">
+            <i class="fa-solid fa-save mr-2"></i>Save All Settings
+        </button>
+    </div>
+
+    <!-- Info Panel -->
+    <div class="space-y-4">
+        <!-- Plan Info -->
+        <div class="card p-5 bg-gradient-to-br from-blue-600 to-blue-700 text-white">
+            <div class="flex items-center gap-3 mb-4">
+                <div class="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                    <i class="fa-solid fa-rocket text-white"></i>
+                </div>
+                <div>
+                    <p class="font-700">Starter Plan</p>
+                    <p class="text-blue-200 text-xs">Active</p>
+                </div>
+            </div>
+            <div class="space-y-2 text-sm">
+                {% for feature in ['Up to 3 Users', '1 Warehouse', 'Product Management', 'GST Billing', 'Inventory Tracking', 'Basic Reports', 'Dashboard Analytics'] %}
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-check text-blue-200 text-xs"></i>
+                    <span class="text-blue-100">{{ feature }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="mt-4 pt-4 border-t border-white/20">
+                <p class="text-blue-200 text-xs">Need more features?</p>
+                <p class="text-white font-600 text-sm mt-1">Upgrade to Professional Plan</p>
+            </div>
+        </div>
+
+        <!-- Quick Info -->
+        <div class="card p-5">
+            <h3 class="font-700 text-slate-800 mb-3">GST Tax Slabs</h3>
+            <div class="space-y-2">
+                {% for slab, items in [('0%', 'Milk, vegetables, books'), ('5%', 'Essential food items'), ('12%', 'Processed food, textiles'), ('18%', 'Electronics, services'), ('28%', 'Luxury items')] %}
+                <div class="flex justify-between items-center py-1.5 border-b border-slate-50">
+                    <span class="badge badge-info">{{ slab }}</span>
+                    <span class="text-xs text-slate-500">{{ items }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- System Info -->
+        <div class="card p-5">
+            <h3 class="font-700 text-slate-800 mb-3">System Info</h3>
+            <div class="space-y-2 text-sm">
+                <div class="flex justify-between">
+                    <span class="text-slate-500">Version</span>
+                    <span class="font-600 text-slate-700">1.0.0</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-slate-500">Powered by</span>
+                    <span class="font-600 text-blue-600">Trionix ERP</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-slate-500">Framework</span>
+                    <span class="font-600 text-slate-700">Flask + Python</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-slate-500">DB</span>
+                    <span class="font-600 text-slate-700">SQLite / MySQL</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function saveSettings() {
+    const btn = document.getElementById('saveSettingsBtn');
+    btn.innerHTML = '<span class="loading"></span> Saving...';
+    btn.disabled = true;
+
+    const data = {
+        company_name: document.getElementById('sCompanyName').value,
+        gst_number: document.getElementById('sGstNumber').value,
+        pan_number: document.getElementById('sPanNumber').value,
+        phone: document.getElementById('sPhone').value,
+        email: document.getElementById('sEmail').value,
+        website: document.getElementById('sWebsite').value,
+        address: document.getElementById('sAddress').value,
+        default_gst: document.getElementById('sDefaultGst').value,
+        invoice_prefix: document.getElementById('sInvoicePrefix').value,
+        invoice_footer: document.getElementById('sInvoiceFooter').value,
+        bank_details: document.getElementById('sBankDetails').value
+    };
+
+    try {
+        await apiRequest('/api/settings', 'POST', data);
+        showToast('Settings saved successfully!', 'success');
+    } catch(err) {
+        showToast(err.message, 'error');
+    } finally {
+        btn.innerHTML = '<i class="fa-solid fa-save mr-2"></i>Save All Settings';
+        btn.disabled = false;
+    }
+}
+</script>
+{% endblock %}

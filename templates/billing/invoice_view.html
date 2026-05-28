@@ -1,0 +1,191 @@
+{% extends 'base.html' %}
+{% block title %}Invoice {{ invoice.invoice_number }}{% endblock %}
+{% block page_title %}Invoice {{ invoice.invoice_number }}{% endblock %}
+{% block page_subtitle %}View and manage invoice details{% endblock %}
+
+{% block content %}
+<div class="flex items-center justify-between mb-5">
+    <a href="{{ url_for('billing.invoices') }}" class="btn-secondary text-sm">
+        <i class="fa-solid fa-arrow-left mr-1.5"></i>Back to Invoices
+    </a>
+    <div class="flex gap-2">
+        <a href="{{ url_for('billing.print_invoice', invoice_id=invoice.id) }}" target="_blank" class="btn-secondary text-sm">
+            <i class="fa-solid fa-print mr-1.5"></i>Print / PDF
+        </a>
+        <button onclick="openStatusModal()" class="btn-primary text-sm">
+            <i class="fa-solid fa-pen mr-1.5"></i>Update Status
+        </button>
+    </div>
+</div>
+
+<div class="card p-8 max-w-4xl mx-auto">
+    <!-- Invoice Header -->
+    <div class="flex justify-between items-start mb-8">
+        <div>
+            <div class="flex items-center gap-3 mb-2">
+                <div class="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center">
+                    <span class="text-white font-black text-sm">T</span>
+                </div>
+                <div>
+                    <h2 class="font-800 text-slate-800 text-lg">{{ settings.company_name if settings else 'Your Company' }}</h2>
+                    <p class="text-xs text-slate-500">GST: {{ settings.gst_number if settings else 'N/A' }}</p>
+                </div>
+            </div>
+            {% if settings and settings.address %}
+            <p class="text-sm text-slate-500 mt-2 max-w-xs">{{ settings.address }}</p>
+            {% endif %}
+            {% if settings and settings.phone %}
+            <p class="text-sm text-slate-500">📞 {{ settings.phone }}</p>
+            {% endif %}
+        </div>
+        <div class="text-right">
+            <div class="text-3xl font-black text-slate-100 tracking-wider">TAX INVOICE</div>
+            <div class="mt-2">
+                <span class="text-2xl font-800 text-blue-600 font-mono">{{ invoice.invoice_number }}</span>
+            </div>
+            <div class="text-sm text-slate-500 mt-1">{{ invoice.invoice_date.strftime('%d %B %Y') }}</div>
+            <div class="mt-2">
+                <span class="badge {{ invoice.status_badge_class }} text-sm px-4 py-1.5">
+                    {{ invoice.payment_status.title() }}
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bill To -->
+    {% if invoice.customer %}
+    <div class="bg-slate-50 rounded-2xl p-5 mb-6">
+        <p class="text-xs font-700 text-slate-400 uppercase tracking-wide mb-2">Bill To</p>
+        <p class="font-700 text-slate-800 text-lg">{{ invoice.customer.name }}</p>
+        {% if invoice.customer.gst_number %}
+        <p class="text-sm text-slate-500">GSTIN: {{ invoice.customer.gst_number }}</p>
+        {% endif %}
+        {% if invoice.customer.phone %}
+        <p class="text-sm text-slate-500">📞 {{ invoice.customer.phone }}</p>
+        {% endif %}
+        {% if invoice.customer.address %}
+        <p class="text-sm text-slate-500">{{ invoice.customer.address }}</p>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Items Table -->
+    <table class="w-full text-sm mb-6">
+        <thead>
+            <tr class="bg-slate-800 text-white">
+                <th class="px-4 py-3 text-left rounded-l-xl">#</th>
+                <th class="px-4 py-3 text-left">Product</th>
+                <th class="px-4 py-3 text-center">HSN/SKU</th>
+                <th class="px-4 py-3 text-center">Qty</th>
+                <th class="px-4 py-3 text-right">Rate (₹)</th>
+                <th class="px-4 py-3 text-center">GST %</th>
+                <th class="px-4 py-3 text-right">GST Amt</th>
+                <th class="px-4 py-3 text-right rounded-r-xl">Total (₹)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr class="border-b border-slate-100">
+                <td class="px-4 py-3 text-slate-400">{{ loop.index }}</td>
+                <td class="px-4 py-3 font-600 text-slate-800">{{ item.product.name if item.product else 'N/A' }}</td>
+                <td class="px-4 py-3 text-center font-mono text-xs text-slate-400">{{ item.product.sku if item.product else '' }}</td>
+                <td class="px-4 py-3 text-center">{{ item.quantity }}</td>
+                <td class="px-4 py-3 text-right">{{ "%.2f"|format(item.unit_price) }}</td>
+                <td class="px-4 py-3 text-center"><span class="badge badge-info">{{ item.gst_percentage }}%</span></td>
+                <td class="px-4 py-3 text-right text-slate-500">{{ "%.2f"|format(item.gst_amount) }}</td>
+                <td class="px-4 py-3 text-right font-700">{{ "%.2f"|format(item.total_amount) }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Totals -->
+    <div class="flex justify-end">
+        <div class="w-80 space-y-2">
+            <div class="flex justify-between text-sm">
+                <span class="text-slate-500">Subtotal</span>
+                <span class="font-600">₹{{ "%.2f"|format(invoice.subtotal) }}</span>
+            </div>
+            <div class="flex justify-between text-sm">
+                <span class="text-slate-500">CGST ({{ "%.1f"|format(invoice.total_gst / invoice.subtotal * 50 if invoice.subtotal else 0) }}%)</span>
+                <span class="font-600">₹{{ "%.2f"|format(invoice.total_gst / 2) }}</span>
+            </div>
+            <div class="flex justify-between text-sm">
+                <span class="text-slate-500">SGST ({{ "%.1f"|format(invoice.total_gst / invoice.subtotal * 50 if invoice.subtotal else 0) }}%)</span>
+                <span class="font-600">₹{{ "%.2f"|format(invoice.total_gst / 2) }}</span>
+            </div>
+            {% if invoice.discount > 0 %}
+            <div class="flex justify-between text-sm text-red-500">
+                <span>Discount</span>
+                <span class="font-600">-₹{{ "%.2f"|format(invoice.discount) }}</span>
+            </div>
+            {% endif %}
+            <div class="border-t border-slate-200 pt-2 flex justify-between">
+                <span class="font-800 text-slate-800 text-base">Grand Total</span>
+                <span class="font-800 text-blue-600 text-xl">₹{{ "%.2f"|format(invoice.total_amount) }}</span>
+            </div>
+            <div class="flex justify-between text-sm">
+                <span class="text-slate-500">Payment Mode</span>
+                <span class="font-600 capitalize">{{ (invoice.payment_mode or 'N/A').replace('_',' ') }}</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    {% if settings and settings.invoice_footer %}
+    <div class="mt-8 pt-5 border-t border-slate-100 text-center text-xs text-slate-400">
+        {{ settings.invoice_footer }}
+    </div>
+    {% endif %}
+
+    <div class="mt-6 pt-5 border-t border-slate-100 text-center text-xs text-slate-300">
+        Generated by Trionix ERP · {{ settings.company_name if settings else '' }}
+    </div>
+</div>
+
+<!-- Update Status Modal -->
+<div id="statusModal" class="modal">
+    <div class="modal-box w-full" style="max-width: 380px;">
+        <h3 class="font-700 text-slate-800 mb-4">Update Payment Status</h3>
+        <div class="space-y-3">
+            <div>
+                <label class="block text-sm font-600 text-slate-700 mb-1">Status</label>
+                <select id="updateStatus" class="input-field">
+                    <option value="paid" {{ 'selected' if invoice.payment_status == 'paid' }}>Paid</option>
+                    <option value="pending" {{ 'selected' if invoice.payment_status == 'pending' }}>Pending</option>
+                    <option value="cancelled" {{ 'selected' if invoice.payment_status == 'cancelled' }}>Cancelled</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-600 text-slate-700 mb-1">Payment Mode</label>
+                <select id="updatePaymentMode" class="input-field">
+                    <option value="cash" {{ 'selected' if invoice.payment_mode == 'cash' }}>Cash</option>
+                    <option value="upi" {{ 'selected' if invoice.payment_mode == 'upi' }}>UPI</option>
+                    <option value="card" {{ 'selected' if invoice.payment_mode == 'card' }}>Card</option>
+                    <option value="bank_transfer" {{ 'selected' if invoice.payment_mode == 'bank_transfer' }}>Bank Transfer</option>
+                </select>
+            </div>
+        </div>
+        <div class="flex gap-3 mt-5">
+            <button onclick="document.getElementById('statusModal').classList.remove('active')" class="btn-secondary flex-1">Cancel</button>
+            <button onclick="updateStatus()" class="btn-primary flex-1">Update</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function openStatusModal() { document.getElementById('statusModal').classList.add('active'); }
+async function updateStatus() {
+    try {
+        await apiRequest('/api/invoices/{{ invoice.id }}/status', 'PUT', {
+            status: document.getElementById('updateStatus').value,
+            payment_mode: document.getElementById('updatePaymentMode').value
+        });
+        showToast('Status updated!', 'success');
+        setTimeout(() => location.reload(), 800);
+    } catch(err) { showToast(err.message, 'error'); }
+}
+</script>
+{% endblock %}

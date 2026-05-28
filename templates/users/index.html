@@ -1,0 +1,244 @@
+{% extends 'base.html' %}
+{% block title %}User Management{% endblock %}
+{% block page_title %}User Management{% endblock %}
+{% block page_subtitle %}Starter Plan — Up to {{ max_users }} users{% endblock %}
+
+{% block content %}
+<!-- Plan Info -->
+<div class="bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl p-5 mb-5 flex items-center justify-between">
+    <div class="flex items-center gap-4">
+        <div class="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+            <i class="fa-solid fa-users text-white text-xl"></i>
+        </div>
+        <div>
+            <p class="text-white font-700 text-base">Starter Plan · User Limit</p>
+            <p class="text-blue-200 text-sm">{{ users|selectattr('is_active')|list|length }} of {{ max_users }} active users used</p>
+        </div>
+    </div>
+    <div class="flex items-center gap-4">
+        <div class="text-right">
+            <div class="flex gap-2">
+                {% for i in range(max_users) %}
+                <div class="w-8 h-8 rounded-full border-2 border-white/40 flex items-center justify-center
+                    {{ 'bg-white/30' if i < users|selectattr('is_active')|list|length else 'bg-white/10' }}">
+                    {% if i < users|selectattr('is_active')|list|length %}
+                    <i class="fa-solid fa-user text-white text-xs"></i>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% if users|selectattr('is_active')|list|length < max_users %}
+        <button onclick="openUserModal()" class="bg-white text-blue-600 font-700 px-5 py-2.5 rounded-xl text-sm hover:bg-blue-50 transition-colors">
+            <i class="fa-solid fa-plus mr-1.5"></i>Add User
+        </button>
+        {% else %}
+        <div class="bg-white/20 text-white font-600 px-5 py-2.5 rounded-xl text-sm">
+            <i class="fa-solid fa-lock mr-1.5"></i>Limit Reached
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Users Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    {% for user in users %}
+    <div class="card p-5 {{ 'opacity-60' if not user.is_active }}">
+        <div class="flex items-start justify-between mb-4">
+            <div class="flex items-center gap-3">
+                <div class="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center text-white font-800 text-lg">
+                    {{ user.name[0].upper() }}
+                </div>
+                <div>
+                    <p class="font-700 text-slate-800">{{ user.name }}</p>
+                    <p class="text-xs text-slate-400">{{ user.email }}</p>
+                </div>
+            </div>
+            {% if user.is_active %}
+            <span class="badge badge-success">Active</span>
+            {% else %}
+            <span class="badge badge-secondary">Inactive</span>
+            {% endif %}
+        </div>
+
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                {% if user.role == 'admin' %}
+                <span class="badge badge-info">
+                    <i class="fa-solid fa-shield mr-1"></i>{{ user.role_display }}
+                </span>
+                {% elif user.role == 'cashier' %}
+                <span class="badge" style="background:#fdf4ff;color:#9333ea;">
+                    <i class="fa-solid fa-cash-register mr-1"></i>{{ user.role_display }}
+                </span>
+                {% else %}
+                <span class="badge badge-warning">
+                    <i class="fa-solid fa-warehouse mr-1"></i>{{ user.role_display }}
+                </span>
+                {% endif %}
+            </div>
+            <p class="text-xs text-slate-400">
+                {% if user.last_login %}
+                Last: {{ user.last_login.strftime('%d %b') }}
+                {% else %}
+                Never logged in
+                {% endif %}
+            </p>
+        </div>
+
+        <!-- Access Tags -->
+        <div class="flex flex-wrap gap-1 mb-4">
+            {% if user.role == 'admin' %}
+            {% for module in ['Dashboard', 'Products', 'Inventory', 'Billing', 'Users', 'Reports', 'Settings'] %}
+            <span class="text-xs bg-green-50 text-green-600 px-2 py-0.5 rounded-lg font-500">{{ module }}</span>
+            {% endfor %}
+            {% elif user.role == 'cashier' %}
+            {% for module in ['Dashboard', 'Products', 'Billing'] %}
+            <span class="text-xs bg-purple-50 text-purple-600 px-2 py-0.5 rounded-lg font-500">{{ module }}</span>
+            {% endfor %}
+            {% else %}
+            {% for module in ['Dashboard', 'Products', 'Inventory', 'Reports'] %}
+            <span class="text-xs bg-orange-50 text-orange-600 px-2 py-0.5 rounded-lg font-500">{{ module }}</span>
+            {% endfor %}
+            {% endif %}
+        </div>
+
+        {% if user.id != current_user.id %}
+        <div class="flex gap-2">
+            <button onclick="editUser({{ user.id }}, '{{ user.name }}', '{{ user.email }}', '{{ user.role }}', {{ 'true' if user.is_active else 'false' }})"
+                    class="btn-secondary flex-1 text-xs py-2">
+                <i class="fa-solid fa-pen mr-1"></i>Edit
+            </button>
+            <button onclick="toggleUser({{ user.id }}, {{ 'false' if user.is_active else 'true' }})"
+                    class="text-xs px-4 py-2 rounded-lg font-600 transition-colors
+                    {{ 'bg-red-50 text-red-500 hover:bg-red-100' if user.is_active else 'bg-green-50 text-green-600 hover:bg-green-100' }}">
+                {{ 'Deactivate' if user.is_active else 'Activate' }}
+            </button>
+        </div>
+        {% else %}
+        <div class="py-2 text-center text-xs text-slate-400">
+            <i class="fa-solid fa-user-check mr-1"></i>This is you
+        </div>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+
+<!-- User Modal -->
+<div id="userModal" class="modal">
+    <div class="modal-box w-full" style="max-width: 440px;">
+        <div class="flex items-center justify-between mb-5">
+            <h3 class="font-700 text-slate-800 text-lg" id="userModalTitle">Add User</h3>
+            <button onclick="closeUserModal()" class="text-slate-400 hover:text-slate-600 text-xl"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <input type="hidden" id="editUserId">
+        <div class="space-y-3">
+            <div>
+                <label class="block text-sm font-600 text-slate-700 mb-1">Full Name *</label>
+                <input type="text" id="uName" class="input-field" placeholder="John Doe" required>
+            </div>
+            <div>
+                <label class="block text-sm font-600 text-slate-700 mb-1">Email *</label>
+                <input type="email" id="uEmail" class="input-field" placeholder="user@company.com" required>
+            </div>
+            <div>
+                <label class="block text-sm font-600 text-slate-700 mb-1">Password <span id="pwdHint" class="text-slate-400 font-400">(required for new users)</span></label>
+                <input type="password" id="uPassword" class="input-field" placeholder="Minimum 6 characters">
+            </div>
+            <div>
+                <label class="block text-sm font-600 text-slate-700 mb-1">Role *</label>
+                <select id="uRole" class="input-field" onchange="showRoleInfo()">
+                    <option value="cashier">Cashier — Billing access only</option>
+                    <option value="inventory_manager">Inventory Manager — Stock access</option>
+                    <option value="admin">Administrator — Full access</option>
+                </select>
+            </div>
+            <div id="roleInfoBox" class="p-3 bg-blue-50 rounded-xl text-xs text-blue-700 font-500">
+                <i class="fa-solid fa-info-circle mr-1"></i>
+                Cashier can access: Dashboard, Products (view), Billing
+            </div>
+        </div>
+        <div class="flex gap-3 mt-5">
+            <button onclick="closeUserModal()" class="btn-secondary flex-1">Cancel</button>
+            <button onclick="saveUser()" class="btn-primary flex-1">Save User</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const roleInfo = {
+    cashier: 'Cashier can access: Dashboard, Products (view), Billing',
+    inventory_manager: 'Inventory Manager can access: Dashboard, Products, Inventory, Reports',
+    admin: 'Administrator has full access to all modules'
+};
+
+function showRoleInfo() {
+    const role = document.getElementById('uRole').value;
+    document.getElementById('roleInfoBox').innerHTML = `<i class="fa-solid fa-info-circle mr-1"></i>${roleInfo[role]}`;
+}
+
+function openUserModal() {
+    document.getElementById('editUserId').value = '';
+    document.getElementById('uName').value = '';
+    document.getElementById('uEmail').value = '';
+    document.getElementById('uPassword').value = '';
+    document.getElementById('uRole').value = 'cashier';
+    document.getElementById('uEmail').disabled = false;
+    document.getElementById('userModalTitle').textContent = 'Add User';
+    document.getElementById('pwdHint').textContent = '(required for new users)';
+    showRoleInfo();
+    document.getElementById('userModal').classList.add('active');
+}
+
+function closeUserModal() { document.getElementById('userModal').classList.remove('active'); }
+
+function editUser(id, name, email, role, isActive) {
+    document.getElementById('editUserId').value = id;
+    document.getElementById('uName').value = name;
+    document.getElementById('uEmail').value = email;
+    document.getElementById('uEmail').disabled = true;
+    document.getElementById('uPassword').value = '';
+    document.getElementById('uRole').value = role;
+    document.getElementById('userModalTitle').textContent = 'Edit User';
+    document.getElementById('pwdHint').textContent = '(leave blank to keep current)';
+    showRoleInfo();
+    document.getElementById('userModal').classList.add('active');
+}
+
+async function saveUser() {
+    const id = document.getElementById('editUserId').value;
+    const data = {
+        name: document.getElementById('uName').value,
+        email: document.getElementById('uEmail').value,
+        role: document.getElementById('uRole').value,
+        password: document.getElementById('uPassword').value || undefined
+    };
+    if (!data.name || (!id && !data.email)) { showToast('Name and email are required', 'warning'); return; }
+    if (!id && !data.password) { showToast('Password is required for new users', 'warning'); return; }
+
+    try {
+        if (id) {
+            await apiRequest(`/api/users/${id}`, 'PUT', data);
+            showToast('User updated!', 'success');
+        } else {
+            await apiRequest('/api/users', 'POST', data);
+            showToast('User created!', 'success');
+        }
+        closeUserModal();
+        setTimeout(() => location.reload(), 800);
+    } catch(err) { showToast(err.message, 'error'); }
+}
+
+async function toggleUser(id, activate) {
+    const msg = activate ? 'Activate this user?' : 'Deactivate this user?';
+    if (!confirm(msg)) return;
+    try {
+        await apiRequest(`/api/users/${id}`, 'PUT', { is_active: activate });
+        showToast(activate ? 'User activated!' : 'User deactivated!', 'success');
+        setTimeout(() => location.reload(), 600);
+    } catch(err) { showToast(err.message, 'error'); }
+}
+</script>
+{% endblock %}

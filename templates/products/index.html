@@ -1,0 +1,346 @@
+{% extends 'base.html' %}
+{% block title %}Products{% endblock %}
+{% block page_title %}Product Management{% endblock %}
+{% block page_subtitle %}Manage your product catalog{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="flex items-center gap-3">
+        <div class="relative">
+            <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+            <input type="text" id="searchInput" placeholder="Search products or SKU..."
+                   class="input-field pl-9 w-64" oninput="loadProducts()">
+        </div>
+        <select id="categoryFilter" class="input-field w-40" onchange="loadProducts()">
+            <option value="">All Categories</option>
+            {% for cat in categories %}
+            <option value="{{ cat.id }}">{{ cat.name }}</option>
+            {% endfor %}
+        </select>
+        <label class="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
+            <input type="checkbox" id="lowStockFilter" onchange="loadProducts()" class="w-4 h-4">
+            <span class="font-500">Low stock only</span>
+        </label>
+    </div>
+    <div class="flex items-center gap-2">
+        {% if current_user.role == 'admin' %}
+        <button onclick="openCategoryModal()" class="btn-secondary">
+            <i class="fa-solid fa-tag mr-1.5"></i>Categories
+        </button>
+        {% endif %}
+        {% if current_user.role in ['admin', 'inventory_manager'] %}
+        <button onclick="openProductModal()" class="btn-primary">
+            <i class="fa-solid fa-plus mr-1.5"></i>Add Product
+        </button>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Products Table -->
+<div class="card">
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead class="border-b border-slate-100">
+                <tr>
+                    <th class="px-5 py-3.5 text-left text-xs text-slate-400 font-700 uppercase">Product</th>
+                    <th class="px-5 py-3.5 text-left text-xs text-slate-400 font-700 uppercase">SKU</th>
+                    <th class="px-5 py-3.5 text-left text-xs text-slate-400 font-700 uppercase">Category</th>
+                    <th class="px-5 py-3.5 text-right text-xs text-slate-400 font-700 uppercase">Purchase</th>
+                    <th class="px-5 py-3.5 text-right text-xs text-slate-400 font-700 uppercase">Selling</th>
+                    <th class="px-5 py-3.5 text-center text-xs text-slate-400 font-700 uppercase">GST %</th>
+                    <th class="px-5 py-3.5 text-center text-xs text-slate-400 font-700 uppercase">Stock</th>
+                    <th class="px-5 py-3.5 text-center text-xs text-slate-400 font-700 uppercase">Status</th>
+                    <th class="px-5 py-3.5 text-center text-xs text-slate-400 font-700 uppercase">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="productsTableBody">
+                <tr><td colspan="9" class="text-center py-10 text-slate-400">
+                    <div class="loading mx-auto mb-2" style="border-color: #cbd5e1; border-top-color: #2563eb;"></div>
+                    Loading products...
+                </td></tr>
+            </tbody>
+        </table>
+    </div>
+    <div class="px-5 py-4 border-t border-slate-100 flex items-center justify-between">
+        <span id="tableInfo" class="text-xs text-slate-400"></span>
+        <div id="pagination" class="flex gap-1"></div>
+    </div>
+</div>
+
+<!-- Product Modal -->
+<div id="productModal" class="modal">
+    <div class="modal-box w-full" style="max-width: 600px;">
+        <div class="flex items-center justify-between mb-6">
+            <h3 class="font-700 text-slate-800 text-lg" id="modalTitle">Add Product</h3>
+            <button onclick="closeProductModal()" class="text-slate-400 hover:text-slate-600 text-xl">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <form id="productForm" onsubmit="saveProduct(event)">
+            <input type="hidden" id="productId">
+            <div class="grid grid-cols-2 gap-4">
+                <div class="col-span-2">
+                    <label class="block text-sm font-600 text-slate-700 mb-1.5">Product Name *</label>
+                    <input type="text" id="pName" class="input-field" placeholder="Enter product name" required>
+                </div>
+                <div>
+                    <label class="block text-sm font-600 text-slate-700 mb-1.5">SKU (Auto-generated)</label>
+                    <input type="text" id="pSku" class="input-field" placeholder="Auto or enter custom">
+                </div>
+                <div>
+                    <label class="block text-sm font-600 text-slate-700 mb-1.5">Category</label>
+                    <select id="pCategory" class="input-field">
+                        <option value="">Select Category</option>
+                        {% for cat in categories %}
+                        <option value="{{ cat.id }}">{{ cat.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-600 text-slate-700 mb-1.5">Purchase Price (₹)</label>
+                    <input type="number" id="pPurchasePrice" class="input-field" placeholder="0.00" step="0.01" min="0">
+                </div>
+                <div>
+                    <label class="block text-sm font-600 text-slate-700 mb-1.5">Selling Price (₹) *</label>
+                    <input type="number" id="pSellingPrice" class="input-field" placeholder="0.00" step="0.01" min="0" required>
+                </div>
+                <div>
+                    <label class="block text-sm font-600 text-slate-700 mb-1.5">GST %</label>
+                    <select id="pGst" class="input-field">
+                        <option value="0">0% (Exempt)</option>
+                        <option value="5">5% (Essential)</option>
+                        <option value="12">12% (Standard)</option>
+                        <option value="18" selected>18% (Standard)</option>
+                        <option value="28">28% (Luxury)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-600 text-slate-700 mb-1.5">Unit</label>
+                    <select id="pUnit" class="input-field">
+                        <option value="pcs">Pieces (pcs)</option>
+                        <option value="kg">Kilogram (kg)</option>
+                        <option value="g">Gram (g)</option>
+                        <option value="ltr">Litre (ltr)</option>
+                        <option value="box">Box</option>
+                        <option value="pack">Pack</option>
+                        <option value="set">Set</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-600 text-slate-700 mb-1.5">Current Stock</label>
+                    <input type="number" id="pStock" class="input-field" placeholder="0" min="0" value="0">
+                </div>
+                <div>
+                    <label class="block text-sm font-600 text-slate-700 mb-1.5">Reorder Level</label>
+                    <input type="number" id="pReorder" class="input-field" placeholder="10" min="0" value="10">
+                </div>
+                <div class="col-span-2">
+                    <label class="block text-sm font-600 text-slate-700 mb-1.5">Description</label>
+                    <textarea id="pDesc" class="input-field" rows="2" placeholder="Optional product description"></textarea>
+                </div>
+            </div>
+            <div class="flex gap-3 mt-6">
+                <button type="button" onclick="closeProductModal()" class="btn-secondary flex-1">Cancel</button>
+                <button type="submit" id="saveProductBtn" class="btn-primary flex-1">Save Product</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Category Modal -->
+<div id="categoryModal" class="modal">
+    <div class="modal-box w-full" style="max-width: 420px;">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="font-700 text-slate-800">Manage Categories</h3>
+            <button onclick="closeCategoryModal()" class="text-slate-400 hover:text-slate-600 text-xl"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="flex gap-2 mb-4">
+            <input type="text" id="newCatName" class="input-field flex-1" placeholder="New category name">
+            <button onclick="addCategory()" class="btn-primary">Add</button>
+        </div>
+        <div id="categoryList" class="space-y-2 max-h-60 overflow-y-auto"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentPage = 1;
+
+async function loadProducts() {
+    const search = document.getElementById('searchInput').value;
+    const category = document.getElementById('categoryFilter').value;
+    const lowStock = document.getElementById('lowStockFilter').checked ? '1' : '';
+
+    const params = new URLSearchParams({ page: currentPage, search, category, low_stock: lowStock });
+    const data = await apiRequest(`/api/products?${params}`);
+
+    const tbody = document.getElementById('productsTableBody');
+    if (!data.products.length) {
+        tbody.innerHTML = `<tr><td colspan="9" class="text-center py-10 text-slate-400"><i class="fa-solid fa-box-open text-3xl mb-2 block text-slate-300"></i>No products found</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = data.products.map(p => `
+        <tr class="table-row border-b border-slate-50">
+            <td class="px-5 py-3">
+                <div class="font-600 text-slate-800">${p.name}</div>
+            </td>
+            <td class="px-5 py-3"><span class="font-mono text-xs bg-slate-100 px-2 py-1 rounded">${p.sku}</span></td>
+            <td class="px-5 py-3 text-slate-500 text-sm">${p.category || '-'}</td>
+            <td class="px-5 py-3 text-right text-slate-600">₹${formatNum(p.purchase_price)}</td>
+            <td class="px-5 py-3 text-right font-600 text-slate-800">₹${formatNum(p.selling_price)}</td>
+            <td class="px-5 py-3 text-center"><span class="badge badge-info">${p.gst_percentage}%</span></td>
+            <td class="px-5 py-3 text-center">
+                <span class="font-700 ${p.is_low_stock ? 'text-red-500' : 'text-green-600'}">${p.current_stock}</span>
+                <span class="text-xs text-slate-400"> ${p.unit}</span>
+                ${p.is_low_stock ? '<span class="badge badge-danger ml-1 text-xs">Low</span>' : ''}
+            </td>
+            <td class="px-5 py-3 text-center">
+                <span class="badge ${p.is_active ? 'badge-success' : 'badge-secondary'}">${p.is_active ? 'Active' : 'Inactive'}</span>
+            </td>
+            <td class="px-5 py-3 text-center">
+                <div class="flex items-center justify-center gap-1">
+                    <button onclick="editProduct(${p.id})" class="w-7 h-7 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 text-xs transition-colors">
+                        <i class="fa-solid fa-pen"></i>
+                    </button>
+                    ${document.body.dataset.role === 'admin' ? `
+                    <button onclick="deleteProduct(${p.id}, '${p.name}')" class="w-7 h-7 bg-red-50 text-red-500 rounded-lg hover:bg-red-100 text-xs transition-colors">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>` : ''}
+                </div>
+            </td>
+        </tr>
+    `).join('');
+
+    document.getElementById('tableInfo').textContent = `Showing ${data.products.length} of ${data.total} products`;
+    renderPagination(data.pages, data.current_page);
+}
+
+function formatNum(n) { return parseFloat(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 }); }
+
+function renderPagination(pages, current) {
+    const el = document.getElementById('pagination');
+    if (pages <= 1) { el.innerHTML = ''; return; }
+    let html = '';
+    for (let i = 1; i <= pages; i++) {
+        html += `<button onclick="gotoPage(${i})" class="w-7 h-7 text-xs rounded-lg font-600 ${i === current ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}">${i}</button>`;
+    }
+    el.innerHTML = html;
+}
+
+function gotoPage(p) { currentPage = p; loadProducts(); }
+
+function openProductModal(product = null) {
+    document.getElementById('productId').value = '';
+    document.getElementById('productForm').reset();
+    document.getElementById('modalTitle').textContent = 'Add Product';
+    document.getElementById('pGst').value = '18';
+    document.getElementById('pUnit').value = 'pcs';
+    document.getElementById('pStock').value = '0';
+    document.getElementById('pReorder').value = '10';
+    document.getElementById('productModal').classList.add('active');
+}
+
+function closeProductModal() { document.getElementById('productModal').classList.remove('active'); }
+
+async function editProduct(id) {
+    const p = await apiRequest(`/api/products/${id}`);
+    document.getElementById('productId').value = p.id;
+    document.getElementById('pName').value = p.name;
+    document.getElementById('pSku').value = p.sku;
+    document.getElementById('pCategory').value = p.category_id || '';
+    document.getElementById('pPurchasePrice').value = p.purchase_price;
+    document.getElementById('pSellingPrice').value = p.selling_price;
+    document.getElementById('pGst').value = p.gst_percentage;
+    document.getElementById('pUnit').value = p.unit;
+    document.getElementById('pReorder').value = p.reorder_level;
+    document.getElementById('modalTitle').textContent = 'Edit Product';
+    document.getElementById('pStock').parentElement.style.display = 'none';
+    document.getElementById('productModal').classList.add('active');
+}
+
+async function saveProduct(e) {
+    e.preventDefault();
+    const btn = document.getElementById('saveProductBtn');
+    btn.innerHTML = '<span class="loading"></span> Saving...';
+    btn.disabled = true;
+
+    const id = document.getElementById('productId').value;
+    const data = {
+        name: document.getElementById('pName').value,
+        sku: document.getElementById('pSku').value,
+        category_id: document.getElementById('pCategory').value || null,
+        purchase_price: document.getElementById('pPurchasePrice').value,
+        selling_price: document.getElementById('pSellingPrice').value,
+        gst_percentage: document.getElementById('pGst').value,
+        unit: document.getElementById('pUnit').value,
+        current_stock: document.getElementById('pStock').value,
+        reorder_level: document.getElementById('pReorder').value,
+        description: document.getElementById('pDesc').value
+    };
+
+    try {
+        if (id) {
+            await apiRequest(`/api/products/${id}`, 'PUT', data);
+            showToast('Product updated successfully!', 'success');
+        } else {
+            await apiRequest('/api/products', 'POST', data);
+            showToast('Product created successfully!', 'success');
+        }
+        closeProductModal();
+        loadProducts();
+    } catch (err) {
+        showToast(err.message, 'error');
+    } finally {
+        btn.innerHTML = 'Save Product';
+        btn.disabled = false;
+    }
+}
+
+async function deleteProduct(id, name) {
+    if (!confirm(`Delete "${name}"? This action cannot be undone.`)) return;
+    try {
+        await apiRequest(`/api/products/${id}`, 'DELETE');
+        showToast('Product deleted', 'success');
+        loadProducts();
+    } catch (err) {
+        showToast(err.message, 'error');
+    }
+}
+
+function openCategoryModal() {
+    loadCategories();
+    document.getElementById('categoryModal').classList.add('active');
+}
+function closeCategoryModal() { document.getElementById('categoryModal').classList.remove('active'); }
+
+async function loadCategories() {
+    const cats = await apiRequest('/api/categories');
+    document.getElementById('categoryList').innerHTML = cats.map(c => `
+        <div class="flex items-center justify-between p-2.5 bg-slate-50 rounded-xl">
+            <span class="font-600 text-sm text-slate-700">${c.name}</span>
+            <span class="text-xs text-slate-400">${c.product_count} products</span>
+        </div>
+    `).join('');
+}
+
+async function addCategory() {
+    const name = document.getElementById('newCatName').value.trim();
+    if (!name) return;
+    try {
+        await apiRequest('/api/categories', 'POST', { name });
+        document.getElementById('newCatName').value = '';
+        loadCategories();
+        showToast('Category added!', 'success');
+        location.reload();
+    } catch (err) {
+        showToast(err.message, 'error');
+    }
+}
+
+// Set role for template access
+document.body.dataset.role = '{{ current_user.role }}';
+loadProducts();
+</script>
+{% endblock %}

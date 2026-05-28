@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Trionix Technologies{% endblock %} | Trionix Technologies</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Plus Jakarta Sans', 'sans-serif'], mono: ['JetBrains Mono', 'monospace'] },
+                    colors: {
+                        brand: { 50:'#eff6ff',100:'#dbeafe',200:'#bfdbfe',300:'#93c5fd',400:'#60a5fa',500:'#3b82f6',600:'#2563eb',700:'#1d4ed8',800:'#1e40af',900:'#1e3a8a' },
+                        surface: { DEFAULT:'#f8fafc', card:'#ffffff', border:'#e2e8f0' }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        * { font-family: 'Plus Jakarta Sans', sans-serif; }
+        body { background: #f1f5f9; }
+        .sidebar { width: 260px; transition: all 0.3s ease; }
+        .sidebar-collapsed { width: 72px; }
+        .nav-item { transition: all 0.2s; border-radius: 10px; }
+        .nav-item:hover { background: rgba(59,130,246,0.1); }
+        .nav-item.active { background: #2563eb; color: white; box-shadow: 0 4px 12px rgba(37,99,235,0.4); }
+        .nav-item.active i { color: white; }
+        .card { background: white; border-radius: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04); }
+        .stat-card { transition: transform 0.2s, box-shadow 0.2s; }
+        .stat-card:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        .btn-primary { background: #2563eb; color: white; padding: 8px 18px; border-radius: 9px; font-weight: 600; font-size: 14px; transition: all 0.2s; border: none; cursor: pointer; }
+        .btn-primary:hover { background: #1d4ed8; box-shadow: 0 4px 12px rgba(37,99,235,0.4); }
+        .btn-secondary { background: #f1f5f9; color: #475569; padding: 8px 18px; border-radius: 9px; font-weight: 600; font-size: 14px; transition: all 0.2s; border: 1px solid #e2e8f0; cursor: pointer; }
+        .btn-secondary:hover { background: #e2e8f0; }
+        .btn-danger { background: #fee2e2; color: #dc2626; padding: 7px 14px; border-radius: 8px; font-weight: 600; font-size: 13px; transition: all 0.2s; border: none; cursor: pointer; }
+        .btn-danger:hover { background: #fecaca; }
+        .input-field { width: 100%; padding: 9px 14px; border: 1.5px solid #e2e8f0; border-radius: 9px; font-size: 14px; transition: all 0.2s; outline: none; }
+        .input-field:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+        .badge { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+        .badge-success { background: #dcfce7; color: #16a34a; }
+        .badge-danger { background: #fee2e2; color: #dc2626; }
+        .badge-warning { background: #fef9c3; color: #ca8a04; }
+        .badge-info { background: #dbeafe; color: #2563eb; }
+        .badge-secondary { background: #f1f5f9; color: #64748b; }
+        .table-row:hover { background: #f8fafc; }
+        .modal { display: none; position: fixed; inset: 0; z-index: 1000; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); }
+        .modal.active { display: flex; align-items: center; justify-content: center; }
+        .modal-box { background: white; border-radius: 20px; padding: 32px; max-height: 90vh; overflow-y: auto; box-shadow: 0 25px 60px rgba(0,0,0,0.3); animation: modalIn 0.2s ease; }
+        @keyframes modalIn { from { opacity:0; transform: scale(0.95) translateY(-10px); } to { opacity:1; transform: scale(1) translateY(0); } }
+        .toast { position: fixed; bottom: 24px; right: 24px; z-index: 9999; animation: toastIn 0.3s ease; }
+        @keyframes toastIn { from { opacity:0; transform: translateY(20px); } to { opacity:1; transform: translateY(0); } }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        .sidebar-label { transition: opacity 0.2s, width 0.2s; }
+        @media (max-width: 768px) { .sidebar { transform: translateX(-100%); position: fixed; z-index: 100; height: 100vh; } .sidebar.mobile-open { transform: translateX(0); } }
+        .loading { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .page-header { background: white; border-radius: 16px; padding: 20px 28px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); display: flex; align-items: center; justify-content: space-between; }
+    </style>
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <div class="flex h-screen overflow-hidden">
+        <!-- Sidebar -->
+        <aside id="sidebar" class="sidebar bg-white border-r border-slate-100 flex flex-col h-full overflow-y-auto flex-shrink-0 shadow-sm">
+            <!-- Logo -->
+            <div class="p-5 border-b border-slate-100">
+                <div class="flex items-center gap-3">
+                    <img src="{{ url_for('static', filename='images/logo.png') }}" class="w-9 h-9 rounded-xl object-contain flex-shrink-0" alt="Trionix Technologies Logo">
+                    <div class="sidebar-label overflow-hidden">
+                        <div class="font-bold text-slate-800 text-sm leading-tight">Trionix Technologies</div>
+                        <div class="text-xs text-blue-600 font-medium">Starter Plan</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- User Info -->
+            <div class="px-4 py-3 border-b border-slate-100">
+                <div class="flex items-center gap-3 bg-slate-50 rounded-xl p-2.5">
+                    <div class="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
+                        <span class="text-white font-bold text-xs">{{ current_user.name[0].upper() }}</span>
+                    </div>
+                    <div class="sidebar-label overflow-hidden">
+                        <div class="text-xs font-700 text-slate-700 truncate">{{ current_user.name }}</div>
+                        <div class="text-xs text-slate-400 truncate">{{ current_user.role_display }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Navigation -->
+            <nav class="flex-1 px-3 py-4 space-y-1">
+                {% set nav_items = [
+                    ('dashboard.index', 'fa-gauge-high', 'Dashboard', 'dashboard'),
+                    ('products.index', 'fa-boxes-stacked', 'Products', 'products'),
+                    ('inventory.index', 'fa-warehouse', 'Inventory', 'inventory'),
+                    ('billing.index', 'fa-file-invoice-dollar', 'Billing', 'billing'),
+                    ('billing.invoices', 'fa-receipt', 'Invoices', 'billing'),
+                    ('users.index', 'fa-users', 'Users', 'users'),
+                    ('reports.index', 'fa-chart-bar', 'Reports', 'reports'),
+                    ('settings.index', 'fa-gear', 'Settings', 'settings'),
+                ] %}
+                {% for endpoint, icon, label, module in nav_items %}
+                    {% if current_user.has_access(module) or module == 'billing' %}
+                    <a href="{{ url_for(endpoint) }}"
+                       class="nav-item flex items-center gap-3 px-3 py-2.5 {% if request.endpoint == endpoint %}active{% else %}text-slate-600{% endif %}">
+                        <i class="fa-solid {{ icon }} text-sm w-5 text-center {% if request.endpoint != endpoint %}text-slate-400{% endif %}"></i>
+                        <span class="sidebar-label text-sm font-600">{{ label }}</span>
+                    </a>
+                    {% endif %}
+                {% endfor %}
+            </nav>
+
+            <!-- Logout -->
+            <div class="p-3 border-t border-slate-100">
+                <a href="{{ url_for('auth.logout') }}"
+                   class="nav-item flex items-center gap-3 px-3 py-2.5 text-red-500 w-full">
+                    <i class="fa-solid fa-right-from-bracket text-sm w-5 text-center"></i>
+                    <span class="sidebar-label text-sm font-600">Logout</span>
+                </a>
+            </div>
+        </aside>
+
+        <!-- Mobile Overlay -->
+        <div id="mobileOverlay" class="hidden fixed inset-0 z-50 md:hidden" onclick="toggleSidebar()">
+            <div class="absolute inset-0 bg-black opacity-50"></div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="flex-1 flex flex-col overflow-hidden">
+            <!-- Top bar -->
+            <header class="bg-white border-b border-slate-100 px-6 py-3.5 flex items-center justify-between flex-shrink-0">
+                <div class="flex items-center gap-4">
+                    <button onclick="toggleSidebar()" class="text-slate-400 hover:text-slate-600 transition-colors">
+                        <i class="fa-solid fa-bars text-lg"></i>
+                    </button>
+                    <div>
+                        <h1 class="text-base font-700 text-slate-800">{% block page_title %}Dashboard{% endblock %}</h1>
+                        <p class="text-xs text-slate-400">{% block page_subtitle %}{% endblock %}</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    {% if company_settings %}
+                    <span class="hidden sm:block text-xs text-slate-400 font-medium">{{ company_settings.company_name }}</span>
+                    {% endif %}
+                    <div class="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center cursor-pointer">
+                        <span class="text-white font-bold text-xs">{{ current_user.name[0].upper() }}</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Flash Messages -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            <div class="px-6 pt-4">
+                {% for category, message in messages %}
+                <div class="flex items-center gap-3 p-3.5 rounded-xl mb-2 text-sm font-500
+                    {% if category == 'success' %}bg-green-50 text-green-700 border border-green-200
+                    {% elif category == 'danger' %}bg-red-50 text-red-700 border border-red-200
+                    {% elif category == 'warning' %}bg-yellow-50 text-yellow-700 border border-yellow-200
+                    {% else %}bg-blue-50 text-blue-700 border border-blue-200{% endif %}">
+                    <i class="fa-solid {% if category == 'success' %}fa-check-circle{% elif category == 'danger' %}fa-circle-xmark{% else %}fa-circle-info{% endif %}"></i>
+                    {{ message }}
+                    <button onclick="this.parentElement.remove()" class="ml-auto text-current opacity-60 hover:opacity-100">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% endwith %}
+
+            <!-- Page Content -->
+            <main class="flex-1 overflow-y-auto p-6">
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toastContainer"></div>
+
+    <script>
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('mobileOverlay');
+            if (window.innerWidth < 768) {
+                sidebar.classList.toggle('mobile-open');
+                overlay.classList.toggle('hidden');
+            } else {
+                sidebar.classList.toggle('sidebar-collapsed');
+                document.querySelectorAll('.sidebar-label').forEach(el => el.classList.toggle('hidden'));
+            }
+        }
+
+        function showToast(message, type = 'success') {
+            const colors = { success: 'bg-green-500', error: 'bg-red-500', warning: 'bg-yellow-500', info: 'bg-blue-500' };
+            const icons = { success: 'fa-check', error: 'fa-xmark', warning: 'fa-triangle-exclamation', info: 'fa-info' };
+            const toast = document.createElement('div');
+            toast.className = `toast ${colors[type]} text-white px-5 py-3.5 rounded-xl shadow-2xl flex items-center gap-3 text-sm font-500 min-w-72`;
+            toast.innerHTML = `<i class="fa-solid ${icons[type]}"></i><span>${message}</span>`;
+            document.getElementById('toastContainer').appendChild(toast);
+            setTimeout(() => { toast.style.animation = 'none'; toast.style.opacity = '0'; toast.style.transform = 'translateY(20px)'; toast.style.transition = 'all 0.3s'; setTimeout(() => toast.remove(), 300); }, 3000);
+        }
+
+        function formatCurrency(amount) {
+            return '₹' + parseFloat(amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        async function apiRequest(url, method = 'GET', data = null) {
+            const options = { method, headers: { 'Content-Type': 'application/json' } };
+            if (data) options.body = JSON.stringify(data);
+            const res = await fetch(url, options);
+            const contentType = res.headers.get('content-type') || '';
+            if (!contentType.includes('application/json')) {
+                throw new Error('Server error (' + res.status + '). Check Flask terminal for details.');
+            }
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.error || 'Request failed');
+            return json;
+        }
+
+        // Auto-dismiss alerts
+        setTimeout(() => { document.querySelectorAll('[class*="bg-green-50"], [class*="bg-red-50"], [class*="bg-blue-50"]').forEach(el => { el.style.transition = 'opacity 0.3s'; el.style.opacity = '0'; setTimeout(() => el.remove(), 300); }); }, 4000);
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,296 @@
+{% extends 'base.html' %}
+{% block title %}Reports{% endblock %}
+{% block page_title %}Reports & Analytics{% endblock %}
+{% block page_subtitle %}Business insights and performance metrics{% endblock %}
+
+{% block content %}
+<!-- Report Tabs -->
+<div class="flex gap-2 mb-5 bg-white rounded-2xl p-1.5 w-fit shadow-sm">
+    {% for tab_id, tab_label, tab_icon in [('sales','Sales Report','fa-chart-line'),('inventory','Inventory Report','fa-boxes-stacked'),('revenue','Revenue Summary','fa-indian-rupee-sign')] %}
+    <button onclick="switchTab('{{ tab_id }}')" id="tab_{{ tab_id }}"
+            class="px-5 py-2 rounded-xl font-600 text-sm transition-all flex items-center gap-2
+            {% if loop.first %}bg-blue-600 text-white shadow{% else %}text-slate-500 hover:text-slate-700{% endif %}">
+        <i class="fa-solid {{ tab_icon }}"></i>{{ tab_label }}
+    </button>
+    {% endfor %}
+</div>
+
+<!-- Sales Report Panel -->
+<div id="panel_sales" class="report-panel">
+    <div class="card p-5 mb-4">
+        <div class="flex items-center gap-4 flex-wrap">
+            <div>
+                <label class="block text-xs font-600 text-slate-500 mb-1">From Date</label>
+                <input type="date" id="salesFrom" class="input-field" style="width:160px;">
+            </div>
+            <div>
+                <label class="block text-xs font-600 text-slate-500 mb-1">To Date</label>
+                <input type="date" id="salesTo" class="input-field" style="width:160px;">
+            </div>
+            <div class="pt-5">
+                <button onclick="loadSalesReport()" class="btn-primary">
+                    <i class="fa-solid fa-filter mr-1.5"></i>Generate Report
+                </button>
+            </div>
+            <div class="pt-5 flex gap-2">
+                <button onclick="setDateRange('today')" class="btn-secondary text-xs">Today</button>
+                <button onclick="setDateRange('week')" class="btn-secondary text-xs">This Week</button>
+                <button onclick="setDateRange('month')" class="btn-secondary text-xs">This Month</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4" id="salesSummary">
+        <div class="card p-4 text-center"><p class="text-xs text-slate-400 font-600 mb-1">Total Sales</p><p class="text-2xl font-800 text-slate-800" id="sTotalSales">-</p></div>
+        <div class="card p-4 text-center"><p class="text-xs text-slate-400 font-600 mb-1">Total Revenue</p><p class="text-2xl font-800 text-green-600" id="sTotalRevenue">-</p></div>
+        <div class="card p-4 text-center"><p class="text-xs text-slate-400 font-600 mb-1">Total GST</p><p class="text-2xl font-800 text-blue-600" id="sTotalGst">-</p></div>
+        <div class="card p-4 text-center"><p class="text-xs text-slate-400 font-600 mb-1">Net Revenue</p><p class="text-2xl font-800 text-purple-600" id="sNetRevenue">-</p></div>
+    </div>
+
+    <div class="card p-5">
+        <h3 class="font-700 text-slate-800 mb-4">Sales Transactions</h3>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="border-b border-slate-100">
+                    <tr>
+                        <th class="pb-2 text-left text-xs text-slate-400 font-700">Invoice #</th>
+                        <th class="pb-2 text-left text-xs text-slate-400 font-700">Customer</th>
+                        <th class="pb-2 text-center text-xs text-slate-400 font-700">Date</th>
+                        <th class="pb-2 text-right text-xs text-slate-400 font-700">Subtotal</th>
+                        <th class="pb-2 text-right text-xs text-slate-400 font-700">GST</th>
+                        <th class="pb-2 text-right text-xs text-slate-400 font-700">Total</th>
+                        <th class="pb-2 text-center text-xs text-slate-400 font-700">Mode</th>
+                    </tr>
+                </thead>
+                <tbody id="salesReportBody">
+                    <tr><td colspan="7" class="text-center py-8 text-slate-300 text-sm">Select date range and generate report</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Inventory Report Panel -->
+<div id="panel_inventory" class="report-panel hidden">
+    <div id="invSummaryCards" class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+        <div class="card p-4 text-center"><p class="text-xs text-slate-400 font-600 mb-1">Total Products</p><p class="text-2xl font-800 text-slate-800" id="iTotalProducts">-</p></div>
+        <div class="card p-4 text-center"><p class="text-xs text-slate-400 font-600 mb-1">Inventory Value</p><p class="text-2xl font-800 text-blue-600" id="iInventoryValue">-</p></div>
+        <div class="card p-4 text-center"><p class="text-xs text-slate-400 font-600 mb-1">Low Stock</p><p class="text-2xl font-800 text-orange-500" id="iLowStock">-</p></div>
+        <div class="card p-4 text-center"><p class="text-xs text-slate-400 font-600 mb-1">Out of Stock</p><p class="text-2xl font-800 text-red-500" id="iOutOfStock">-</p></div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div class="card p-5">
+            <h3 class="font-700 text-slate-800 mb-4">Category Summary</h3>
+            <div id="catSummaryBody"></div>
+        </div>
+        <div class="card p-5">
+            <h3 class="font-700 text-slate-800 mb-4 text-orange-500">⚠ Low Stock Items</h3>
+            <div id="lowStockBody" class="space-y-2 max-h-72 overflow-y-auto"></div>
+        </div>
+    </div>
+
+    <div class="card p-5 mt-4">
+        <h3 class="font-700 text-slate-800 mb-4">Full Inventory Report</h3>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="border-b border-slate-100">
+                    <tr>
+                        <th class="pb-2 text-left text-xs text-slate-400 font-700">Product</th>
+                        <th class="pb-2 text-left text-xs text-slate-400 font-700">SKU</th>
+                        <th class="pb-2 text-left text-xs text-slate-400 font-700">Category</th>
+                        <th class="pb-2 text-right text-xs text-slate-400 font-700">Stock</th>
+                        <th class="pb-2 text-right text-xs text-slate-400 font-700">Value</th>
+                        <th class="pb-2 text-center text-xs text-slate-400 font-700">Status</th>
+                    </tr>
+                </thead>
+                <tbody id="invReportBody">
+                    <tr><td colspan="6" class="text-center py-6 text-slate-300">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Revenue Summary Panel -->
+<div id="panel_revenue" class="report-panel hidden">
+    <div class="card p-5 mb-4">
+        <h3 class="font-700 text-slate-800 mb-4">Monthly Revenue Trend (Last 12 Months)</h3>
+        <div style="height:300px;">
+            <canvas id="monthlyRevenueChart"></canvas>
+        </div>
+    </div>
+    <div class="card p-5">
+        <h3 class="font-700 text-slate-800 mb-4">Monthly Breakdown</h3>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="border-b border-slate-100">
+                    <tr>
+                        <th class="pb-2 text-left text-xs text-slate-400 font-700">Month</th>
+                        <th class="pb-2 text-right text-xs text-slate-400 font-700">Total Revenue (₹)</th>
+                        <th class="pb-2 text-right text-xs text-slate-400 font-700">Sales Count</th>
+                        <th class="pb-2 text-right text-xs text-slate-400 font-700">Avg per Sale (₹)</th>
+                    </tr>
+                </thead>
+                <tbody id="revenueTableBody">
+                    <tr><td colspan="4" class="text-center py-6 text-slate-300">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Set default dates
+const today = new Date().toISOString().split('T')[0];
+const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+document.getElementById('salesFrom').value = monthStart;
+document.getElementById('salesTo').value = today;
+
+function switchTab(tab) {
+    document.querySelectorAll('.report-panel').forEach(p => p.classList.add('hidden'));
+    document.getElementById(`panel_${tab}`).classList.remove('hidden');
+    document.querySelectorAll('[id^="tab_"]').forEach(btn => {
+        btn.className = 'px-5 py-2 rounded-xl font-600 text-sm transition-all flex items-center gap-2 text-slate-500 hover:text-slate-700';
+    });
+    document.getElementById(`tab_${tab}`).className = 'px-5 py-2 rounded-xl font-600 text-sm transition-all flex items-center gap-2 bg-blue-600 text-white shadow';
+
+    if (tab === 'inventory') loadInventoryReport();
+    if (tab === 'revenue') loadRevenueReport();
+}
+
+function setDateRange(range) {
+    const now = new Date();
+    let from = new Date(), to = new Date();
+    if (range === 'today') { from = to = now; }
+    else if (range === 'week') { from = new Date(now - 6 * 86400000); }
+    else if (range === 'month') { from = new Date(now.getFullYear(), now.getMonth(), 1); }
+    document.getElementById('salesFrom').value = from.toISOString().split('T')[0];
+    document.getElementById('salesTo').value = to.toISOString().split('T')[0];
+    loadSalesReport();
+}
+
+function fmtCur(n) { return '₹' + parseFloat(n||0).toLocaleString('en-IN', {minimumFractionDigits:2}); }
+function fmtNum(n) { return parseFloat(n||0).toLocaleString('en-IN', {minimumFractionDigits:2}); }
+
+async function loadSalesReport() {
+    const from = document.getElementById('salesFrom').value;
+    const to = document.getElementById('salesTo').value;
+    const data = await apiRequest(`/api/reports/sales?start_date=${from}&end_date=${to}`);
+
+    document.getElementById('sTotalSales').textContent = data.summary.total_sales;
+    document.getElementById('sTotalRevenue').textContent = fmtCur(data.summary.total_revenue);
+    document.getElementById('sTotalGst').textContent = fmtCur(data.summary.total_gst);
+    document.getElementById('sNetRevenue').textContent = fmtCur(data.summary.net_revenue);
+
+    const modeIcons = { cash:'💵', upi:'📱', card:'💳', bank_transfer:'🏦', cheque:'📄' };
+    document.getElementById('salesReportBody').innerHTML = data.invoices.length
+        ? data.invoices.map(inv => `
+            <tr class="table-row border-b border-slate-50">
+                <td class="py-2.5"><a href="/billing/invoice/${inv.id}" class="font-700 text-blue-600 font-mono text-xs hover:underline">${inv.invoice_number}</a></td>
+                <td class="py-2.5 text-slate-600 text-sm">${inv.customer}</td>
+                <td class="py-2.5 text-center text-slate-500 text-xs">${inv.invoice_date}</td>
+                <td class="py-2.5 text-right text-slate-600">₹${fmtNum(inv.subtotal)}</td>
+                <td class="py-2.5 text-right text-slate-500">₹${fmtNum(inv.total_gst)}</td>
+                <td class="py-2.5 text-right font-700 text-slate-800">₹${fmtNum(inv.total_amount)}</td>
+                <td class="py-2.5 text-center text-sm">${modeIcons[inv.payment_mode] || ''} ${(inv.payment_mode||'').replace('_',' ')}</td>
+            </tr>
+        `).join('')
+        : '<tr><td colspan="7" class="text-center py-8 text-slate-300">No sales in this period</td></tr>';
+}
+
+async function loadInventoryReport() {
+    const data = await apiRequest('/api/reports/inventory');
+    document.getElementById('iTotalProducts').textContent = data.summary.total_products;
+    document.getElementById('iInventoryValue').textContent = fmtCur(data.summary.total_inventory_value);
+    document.getElementById('iLowStock').textContent = data.summary.low_stock_count;
+    document.getElementById('iOutOfStock').textContent = data.summary.out_of_stock_count;
+
+    document.getElementById('catSummaryBody').innerHTML = data.category_summary.map(c => `
+        <div class="flex items-center justify-between p-3 bg-slate-50 rounded-xl mb-2">
+            <div>
+                <p class="font-600 text-slate-700 text-sm">${c.category}</p>
+                <p class="text-xs text-slate-400">${c.products} products · ${c.total_stock} units</p>
+            </div>
+            <p class="font-700 text-blue-600">${fmtCur(c.total_value)}</p>
+        </div>
+    `).join('') || '<p class="text-slate-400 text-sm">No data</p>';
+
+    document.getElementById('lowStockBody').innerHTML = data.low_stock.map(p => `
+        <div class="flex items-center justify-between p-2.5 bg-orange-50 rounded-xl border border-orange-100">
+            <div>
+                <p class="font-600 text-sm text-slate-700">${p.name}</p>
+                <p class="text-xs font-mono text-slate-400">${p.sku}</p>
+            </div>
+            <div class="text-right">
+                <p class="font-800 text-orange-500">${p.current_stock} left</p>
+                <p class="text-xs text-slate-400">min: ${p.reorder_level}</p>
+            </div>
+        </div>
+    `).join('') || '<p class="text-slate-400 text-sm text-center py-4">All products well-stocked!</p>';
+
+    document.getElementById('invReportBody').innerHTML = data.products.map(p => `
+        <tr class="table-row border-b border-slate-50">
+            <td class="py-2.5 font-600 text-slate-800">${p.name}</td>
+            <td class="py-2.5"><span class="font-mono text-xs bg-slate-100 px-2 py-0.5 rounded">${p.sku}</span></td>
+            <td class="py-2.5 text-slate-500 text-xs">${p.category}</td>
+            <td class="py-2.5 text-right font-700 ${p.is_low_stock ? 'text-red-500' : 'text-green-600'}">${p.current_stock}</td>
+            <td class="py-2.5 text-right text-slate-600">₹${fmtNum(p.stock_value)}</td>
+            <td class="py-2.5 text-center">
+                ${p.current_stock === 0
+                    ? '<span class="badge badge-danger">Out</span>'
+                    : p.is_low_stock
+                        ? '<span class="badge badge-warning">Low</span>'
+                        : '<span class="badge badge-success">OK</span>'}
+            </td>
+        </tr>
+    `).join('');
+}
+
+let revenueChartInstance = null;
+async function loadRevenueReport() {
+    const data = await apiRequest('/api/reports/revenue');
+    const months = data.monthly_data;
+
+    document.getElementById('revenueTableBody').innerHTML = months.map(m => `
+        <tr class="table-row border-b border-slate-50">
+            <td class="py-2.5 font-600 text-slate-700">${m.month}</td>
+            <td class="py-2.5 text-right font-700 text-blue-600">₹${fmtNum(m.revenue)}</td>
+            <td class="py-2.5 text-right text-slate-600">${m.sales}</td>
+            <td class="py-2.5 text-right text-slate-500">₹${m.sales > 0 ? fmtNum(m.revenue / m.sales) : '0.00'}</td>
+        </tr>
+    `).join('');
+
+    if (revenueChartInstance) revenueChartInstance.destroy();
+    const ctx = document.getElementById('monthlyRevenueChart').getContext('2d');
+    revenueChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: months.map(m => m.month),
+            datasets: [{
+                label: 'Revenue (₹)',
+                data: months.map(m => m.revenue),
+                backgroundColor: months.map(m => m.revenue > 0 ? 'rgba(37,99,235,0.7)' : 'rgba(226,232,240,0.5)'),
+                borderColor: months.map(m => m.revenue > 0 ? '#2563eb' : '#e2e8f0'),
+                borderWidth: 2,
+                borderRadius: 8
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { grid: { color: '#f1f5f9' }, ticks: { font: { size: 11 }, color: '#94a3b8', callback: v => '₹' + (v/1000).toFixed(0) + 'k' } },
+                x: { grid: { display: false }, ticks: { font: { size: 10 }, color: '#94a3b8' } }
+            }
+        }
+    });
+}
+
+// Load default
+loadSalesReport();
+</script>
+{% endblock %}

@@ -11,7 +11,7 @@
         * { font-family: 'Plus Jakarta Sans', sans-serif; }
         body { background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 50%, #1e40af 100%); min-height: 100vh; }
         .glass { background: rgba(255,255,255,0.05); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.1); }
-        .input-field { width: 100%; padding: 12px 16px; background: rgba(255,255,255,0.08); border: 1.5px solid rgba(255,255,255,0.15); border-radius: 12px; color: white; font-size: 14px; transition: all 0.2s; outline: none; }
+        .input-field { width: 100%; padding: 12px 16px; background: rgba(255,255,255,0.08); border: 1.5px solid rgba(255,255,255,0.15); border-radius: 12px; color: #111827; font-size: 14px; transition: all 0.2s; outline: none; }
         .input-field::placeholder { color: rgba(255,255,255,0.4); }
         .input-field:focus { border-color: #60a5fa; background: rgba(255,255,255,0.12); box-shadow: 0 0 0 3px rgba(96,165,250,0.2); }
         .grid-bg { background-image: linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px); background-size: 40px 40px; }
@@ -25,8 +25,10 @@
     <div class="w-full max-w-md relative z-10">
         <!-- Logo -->
         <div class="text-center mb-8">
-            <img src="{{ url_for('static', filename='images/logo.png') }}" class="w-16 h-16 rounded-2xl object-contain mx-auto mb-4 shadow-2xl shadow-blue-500/40" alt="Trionix Technologies Logo">
-            <h1 class="text-2xl font-800 text-white">Trionix Technologies</h1>
+            <div class="w-16 h-16 bg-gradient-to-br from-blue-400 to-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-2xl shadow-blue-500/40">
+                <span class="text-white font-black text-2xl">T</span>
+            </div>
+            <h1 class="text-2xl font-800 text-gray-900">Trionix Technologies</h1>
             <p class="text-blue-300 text-sm font-500 mt-1">Inventory & GST Billing System</p>
         </div>
 
@@ -83,24 +85,7 @@
                     </button>
                 </div>
             </form>
-
-            <!-- Demo Credentials -->
-            <div class="mt-6 p-4 rounded-xl border border-blue-500/20 bg-blue-500/10">
-                <p class="text-blue-300 text-xs font-700 mb-2">🎯 Demo Credentials</p>
-                <div class="grid grid-cols-1 gap-1.5 text-xs text-slate-400">
-                    <div class="flex justify-between">
-                        <span>Admin:</span>
-                        <span class="text-blue-300 font-mono">admin@demo.com / admin123</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span>Cashier:</span>
-                        <span class="text-blue-300 font-mono">cashier@demo.com / cashier123</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span>Inventory:</span>
-                        <span class="text-blue-300 font-mono">inventory@demo.com / inventory123</span>
-                    </div>
-                </div>
+        </div>
             </div>
         </div>
 
@@ -116,15 +101,6 @@
             if (input.type === 'password') { input.type = 'text'; icon.classList.replace('fa-eye', 'fa-eye-slash'); }
             else { input.type = 'password'; icon.classList.replace('fa-eye-slash', 'fa-eye'); }
         }
-
-        // Quick fill demo credentials
-        document.querySelectorAll('.font-mono').forEach(el => {
-            el.style.cursor = 'pointer';
-            el.addEventListener('click', () => {
-                const parts = el.textContent.split(' / ');
-                document.querySelector('input[name="email"]').value = parts[0];
-                document.querySelector('input[name="password"]').value = parts[1];
-            });
         });
     </script>
 </body>

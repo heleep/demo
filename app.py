@@ -91,11 +91,11 @@ def seed_demo_data():
 
     # Company settings
     settings = CompanySettings(
-        company_name="Demo Retail Store",
-        gst_number="27AABCU9603R1ZX",
-        address="123, MG Road, Mumbai, Maharashtra - 400001",
-        phone="9876543210",
-        email="demo@retailstore.com",
+        company_name="Trionix Technologies",
+        gst_number="",
+        address="Complex-101 Maple Square, Bharuch, Gujarat",
+        phone="8899774455",
+        email="admin@trionix.com",
         invoice_prefix="INV",
         invoice_counter=1001
     )
@@ -108,22 +108,22 @@ def seed_demo_data():
 
     # Users
     admin = User(
-        name="Rajesh Kumar",
-        email="admin@demo.com",
+        name="admin_trionix",
+        email="admin@trionix.com",
         password_hash=generate_password_hash("admin123"),
         role="admin",
         is_active=True
     )
     cashier = User(
-        name="Priya Sharma",
-        email="cashier@demo.com",
+        name="cashier_trionix",
+        email="cashier@trionix.com",
         password_hash=generate_password_hash("cashier123"),
         role="cashier",
         is_active=True
     )
     inv_manager = User(
-        name="Amit Singh",
-        email="inventory@demo.com",
+        name="inventory_trionix",
+        email="inventory@trionix.com",
         password_hash=generate_password_hash("inventory123"),
         role="inventory_manager",
         is_active=True
@@ -245,9 +245,45 @@ def seed_demo_data():
 
     db.session.commit()
     print("✅ Demo data seeded successfully!")
-    print("   Admin: admin@demo.com / admin123")
-    print("   Cashier: cashier@demo.com / cashier123")
-    print("   Inventory: inventory@demo.com / inventory123")
+    print("   Admin: admin@trionix.com / admin123")
+    print("   Cashier: cashier@trionix.com / cashier123")
+    print("   Inventory: inventory@trionix.com / inventory123")
+
+
+
+@app.route('/update-trionix-credentials-x9k2m')
+def update_credentials():
+    from werkzeug.security import generate_password_hash
+    from models.user import User
+    from models.database import db
+    from models.settings import CompanySettings
+    try:
+        admin = User.query.filter_by(role='admin').first()
+        admin.name = 'admin_trionix'
+        admin.email = 'admin@trionix.com'
+        admin.password_hash = generate_password_hash('admin123')
+
+        cashier = User.query.filter_by(role='cashier').first()
+        cashier.name = 'cashier_trionix'
+        cashier.email = 'cashier@trionix.com'
+        cashier.password_hash = generate_password_hash('cashier123')
+
+        inv = User.query.filter_by(role='inventory_manager').first()
+        inv.name = 'inventory_trionix'
+        inv.email = 'inventory@trionix.com'
+        inv.password_hash = generate_password_hash('inventory123')
+
+        settings = CompanySettings.query.first()
+        settings.company_name = 'Trionix Technologies'
+        settings.gst_number = ''
+        settings.address = 'Complex-101 Maple Square, Bharuch, Gujarat'
+        settings.phone = '8899774455'
+        settings.email = 'admin@trionix.com'
+
+        db.session.commit()
+        return "✅ Credentials updated successfully! NOW DELETE THIS ROUTE!"
+    except Exception as e:
+        return f"❌ Error: {str(e)}"
 
 
 app = create_app()

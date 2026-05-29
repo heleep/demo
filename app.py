@@ -251,6 +251,9 @@ def seed_demo_data():
 
 
 
+
+app = create_app()
+
 @app.route('/update-trionix-credentials-x9k2m')
 def update_credentials():
     from werkzeug.security import generate_password_hash
@@ -284,9 +287,6 @@ def update_credentials():
         return "✅ Credentials updated successfully! NOW DELETE THIS ROUTE!"
     except Exception as e:
         return f"❌ Error: {str(e)}"
-
-
-app = create_app()
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
